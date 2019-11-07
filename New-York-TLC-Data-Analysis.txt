@@ -1,0 +1,724 @@
+-- 1.Pre-requisite #######################################################
+ADD JAR /opt/cloudera/parcels/CDH/lib/hive/lib/hive-hcatalog-core-1.1.0-cdh5.11.2.jar;
+
+SET hive.exec.max.dynamic.partitions=100000;
+SET hive.exec.max.dynamic.partitions.pernode=100000;
+
+-- 2.creating database  #######################################################
+
+-- drop database sweta710_assignment CASCADE;
+Create database if not exists  sweta710_assignment;
+use sweta710_assignment;
+
+-- 3.Loading data  #######################################################
+
+-- drop  table sweta710_assignment.Nyc_tlc_data; 
+
+create external table if not exists sweta710_assignment.Nyc_tlc_data(
+VendorID int,
+tpep_pickup_datetime timestamp,
+tpep_dropoff_datetime timestamp,
+passenger_count int,
+trip_distance double,
+RatecodeID int,
+store_and_fwd_flag string,
+PULocationID int,
+DOLocationID int,
+payment_type int,
+fare_amount double,
+extra double ,
+mta_tax double,
+tip_amount double,
+tolls_amount double,
+improvement_surcharge double,
+total_amount double
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+LOCATION '/common_folder/nyc_taxi_data/'
+tblproperties ("skip.header.line.count"="1"); 
+-- skipping the header and blank row
+
+-- querying table for validation
+select * from sweta710_assignment.Nyc_tlc_data NYC;
+select count(*) from sweta710_assignment.Nyc_tlc_data NYC;
+--count = 1174569
+
+--4.Basic Data Quality Checks
+--How many records has each TPEP provider provided
+--Write a query that summarises the number of records of each provider.
+select VendorID,count(*) as records from sweta710_assignment.Nyc_tlc_data NYC
+group by VendorID;
+-- 1	647183
+-- 2	527386
+-- Vendor 1 has more records of the trips. 
+--Lets see  what percentage of total data belongs to  vendor 1 
+select 647183/1174569;
+--55.09% of total trip data is from vendor 1 and rest from vendor 2
+
+-- 4.A.check for empty cells   #######################################################
+select sum(case when 	VendorID 	 is null then 1 else 0 end) 	VendorID 	,
+sum(case when 	tpep_pickup_datetime 	 is null then 1 else 0 end) 	tpep_pickup_datetime 	,
+sum(case when 	tpep_dropoff_datetime 	 is null then 1 else 0 end) 	tpep_dropoff_datetime 	,
+sum(case when 	passenger_count 	 is null then 1 else 0 end) 	passenger_count 	,
+sum(case when 	trip_distance 	 is null then 1 else 0 end) 	trip_distance 	,
+sum(case when 	RatecodeID 	 is null then 1 else 0 end) 	RatecodeID 	,
+sum(case when 	store_and_fwd_flag 	 is null then 1 else 0 end) 	store_and_fwd_flag 	,
+sum(case when 	PULocationID 	 is null then 1 else 0 end) 	PULocationID 	,
+sum(case when 	DOLocationID 	 is null then 1 else 0 end) 	DOLocationID 	,
+sum(case when 	payment_type 	 is null then 1 else 0 end) 	payment_type 	,
+sum(case when 	fare_amount 	 is null then 1 else 0 end) 	fare_amount 	,
+sum(case when 	extra 	 is null then 1 else 0 end) 	extra 	,
+sum(case when 	mta_tax 	 is null then 1 else 0 end) 	mta_tax 	,
+sum(case when 	tip_amount 	 is null then 1 else 0 end) 	tip_amount 	,
+sum(case when 	tolls_amount 	 is null then 1 else 0 end) 	tolls_amount 	,
+sum(case when 	improvement_surcharge 	 is null then 1 else 0 end) 	improvement_surcharge 	,
+sum(case when 	total_amount 	 is null then 1 else 0 end) 	total_amount 	
+from sweta710_assignment.Nyc_tlc_data NYC;
+-- all columns return zero. Meaning there are no null values present in the dataset
+
+-- 4.B.range of data  #######################################################
+select max(VendorID ) max_VendorID	,	min(VendorID ) min_VendorID	,
+max(tpep_pickup_datetime ) max_tpep_pickup_datetime	,	min(tpep_pickup_datetime ) min_tpep_pickup_datetime	,
+max(tpep_dropoff_datetime ) max_tpep_dropoff_datetime	,	min(tpep_dropoff_datetime ) min_tpep_dropoff_datetime	,
+max(passenger_count ) max_passenger_count	,	min(passenger_count ) min_passenger_count	,
+max(trip_distance ) max_trip_distance	,	min(trip_distance ) min_trip_distance	,
+max(RatecodeID ) max_RatecodeID	,	min(RatecodeID ) min_RatecodeID	,
+max(store_and_fwd_flag ) max_store_and_fwd_flag	,	min(store_and_fwd_flag ) min_store_and_fwd_flag	,
+max(PULocationID ) max_PULocationID	,	min(PULocationID ) min_PULocationID	,
+max(DOLocationID ) max_DOLocationID	,	min(DOLocationID ) min_DOLocationID	,
+max(payment_type ) max_payment_type	,	min(payment_type ) min_payment_type	,
+max(fare_amount ) max_fare_amount	,	min(fare_amount ) min_fare_amount	,
+max(extra ) max_extra	,	min(extra ) min_extra	,
+max(mta_tax ) max_mta_tax	,	min(mta_tax ) min_mta_tax	,
+max(tip_amount ) max_tip_amount	,	min(tip_amount ) min_tip_amount	,
+max(tolls_amount ) max_tolls_amount	,	min(tolls_amount ) min_tolls_amount	,
+max(improvement_surcharge ) max_improvement_surcharge	,	min(improvement_surcharge ) min_improvement_surcharge	,
+max(total_amount ) max_total_amount	,	min(total_amount ) min_total_amount		
+from sweta710_assignment.Nyc_tlc_data NYC;
+--max_vendorid	2
+--min_vendorid	1
+--max_tpep_pickup_datetime	2018-01-01 00:04:00.0
+--min_tpep_pickup_datetime	2003-01-01 00:58:00.0
+--max_tpep_dropoff_datetime	2019-04-24 19:21:00.0
+--min_tpep_dropoff_datetime	2003-01-01 01:28:00.0
+--max_passenger_count	9
+--min_passenger_count	0
+--max_trip_distance	126.41
+--min_trip_distance	0
+--max_ratecodeid	99
+--min_ratecodeid	1
+--max_store_and_fwd_flag	Y
+--min_store_and_fwd_flag	N
+--max_pulocationid	265
+--min_pulocationid	1
+--max_dolocationid	265
+--min_dolocationid	1
+--max_payment_type	4
+--min_payment_type	1
+--max_fare_amount	650
+--min_fare_amount	-200
+--max_extra	4.8
+--min_extra	-10.6
+--max_mta_tax	11.4
+--min_mta_tax	-0.5
+--max_tip_amount	450
+--min_tip_amount	-1.16
+--max_tolls_amount	895.89
+--min_tolls_amount	-5.76
+--max_improvement_surcharge	1
+--min_improvement_surcharge	-0.3
+--max_total_amount	928.19
+--min_total_amount	-200.8
+
+-- column which seems to match the data dictionary #############################################################
+-- pulocationid,dolocationid:- pickup and drop location are raning from 1 to 265
+-- payment_type in data is spread between 1-4 which is with provided values of 1-6
+-- vendorid is ranging 1 & 2. Which is okay as there are 2 vendors only.
+-- store_and_fwd_flag is Yes or No
+
+--columns that do not match the data dictionary############################################
+-- tpep_pickup_datetime has a minimum value of the year 2003 which shouldn't be there in this data
+--tpep_dropoff_datetime has a minimum value in 2003,  which does not match the specification of this dataset.
+-- ratecodeid is ranging in 1 and 99, but should have been between 1 and 6
+-- fare_amount has a minimum of -200 value, which can not be the case anyhow.
+--extra is having minimum of -10.6 which does not seem right.
+--mta_tax is also having a negative value 
+--tip_amount is having a negative value
+--toll_amount is having a negative minimum value
+--improvement_surcharge is having a negative minimium value.
+--and total_amount is also negative which shouldn't be there.
+
+
+-- Basic Data Quality Checks######################
+-- 2.The data provided is for months November and December only. 
+-- Check whether the data is consistent, and if not, identify the data quality issues.
+-- ###########################################################################
+-- Mention all data quality issues in comments.
+-------------- tpep_pickup_datetime-------------------------
+-- the data is for two months Nov 2017 & Dec 2017
+-- any day before 1-nov-2017 and after 31-dec-2017(represent as >= 1-jan-2018) is out of context
+select count(*) from  sweta710_assignment.Nyc_tlc_data NYC
+where NYC.tpep_pickup_datetime < '2017-11-1 00:00:00.0' or NYC.tpep_pickup_datetime>='2018-01-01 00:00:00.0';
+-- 14 records are not in the range
+select  vendorid, count(*)from  sweta710_assignment.Nyc_tlc_data NYC
+where NYC.tpep_pickup_datetime < '2017-11-1 00:00:00.0' or NYC.tpep_pickup_datetime>='2018-01-01 00:00:00.0'
+group by vendorid;
+-- seems vendor 2 is at fault.
+-- 2	14
+
+-----tpep_dropoff_datetime -------------------
+-- The drop time can vary uptill the early hours of the next day of the range hence the drop time is allowed to be till 1 jan 2018(represent as >= 2-jan-2018)
+select count(*) from  sweta710_assignment.Nyc_tlc_data NYC
+where NYC.tpep_dropoff_datetime < '2017-11-1 00:00:00.0' or NYC.tpep_dropoff_datetime>='2018-01-02 00:00:00.0';
+-- 7 records in total are not in range
+
+select vendorid, count(*) from sweta710_assignment.Nyc_tlc_data NYC
+where NYC.tpep_dropoff_datetime < '2017-11-1 00:00:00.0' or NYC.tpep_dropoff_datetime>='2018-01-02 00:00:00.0'
+group by vendorid;
+
+--2    6
+--1    1
+
+-- we will evaluate vendor 1 a lil more in details, since it has only 1 records showing wrong time
+select * from  sweta710_assignment.Nyc_tlc_data NYC 
+where (NYC.tpep_dropoff_datetime < '2017-11-1 00:00:00.0' or NYC.tpep_dropoff_datetime>='2018-01-02 00:00:00.0')
+and vendorid=1;
+
+-- seems like the data is corrupt as the start time of trip is 2017-11-14 wile the end time is 2019-04-24. A trip can definitely can't be in process for more than 4 months. 
+-- it concludes vendor 2 is contributing corrupt data in this column
+-- Lets check for the integrity of start and end date
+-- drop time can't be before or equal to the pick up time
+select count(*) as faulty_time_rides from sweta710_assignment.Nyc_tlc_data NYC
+where NYC.tpep_dropoff_datetime<=NYC.tpep_pickup_datetime;
+--6555
+
+select 6555/1174569;
+
+--a small percent of data can be removed. 
+
+select vendorid, count(*) from sweta710_assignment.Nyc_tlc_data NYC
+where NYC.tpep_dropoff_datetime<=NYC.tpep_pickup_datetime
+group by vendorid;
+-- 1	3492
+-- 2	3063
+--It might mean that these trips were not taken at all. 
+-- Vendor 1 and 2 both contributed to date related issues in the dataset
+
+----------- passenger_count -----------------------------------------
+select passenger_count, count(*) as sum_rides from sweta710_assignment.Nyc_tlc_data NYC  group by passenger_count;
+ --passenger_count	sum_rides
+ --	0	6824
+ --	2	176872
+ --	4	24951
+ --	6	33146
+ --	8	3
+ --	1	827499
+ --	3	50693
+ --	5	54568
+ --	7	12
+ --	9	1
+
+-- The number of trips having passengers 7,8 and 9 are quite small, most likely by the error of driver while entering the number of passengers.
+select 6824/1174569;
+ -- 0.0058097
+-- The number of passengers in a trip as 0 is definitely the driver being lazy while entering the exact number of passengers or the vehicle just making the ride to deliver any package.
+-- Lets find these results grouping them by vendors.
+
+select vendorid,passenger_count, count(*) 
+from sweta710_assignment.Nyc_tlc_data NYC 
+where passenger_count in  (0,7,8,9) group by vendorid,passenger_count
+order by passenger_count,vendorid; 
+-- we will ignore 0 in passenger_count as the count of such records is not too high i.e. 6813 and can be to be ignored
+-- remaing records  can be kept by assuming that they are bigger cars
+--vendorid passenger_count count
+-- 1	        0	       6813
+-- 2	        0	        11
+-- 1            7           1
+-- 2            7           11
+-- 2            8           3
+-- 2            9           1
+-- Vendor 1 is majorly responsible for incorrect data in the number of passengers by filling it as 0.
+
+--------------- trip_distance-----------------------
+-- max_trip_distance,min_trip_distance
+--      126.41,			0,
+-- Data Dictionary:- The elapsed trip distance in miles reported by the taximeter.
+select  count(*) from  sweta710_assignment.Nyc_tlc_data NYC where trip_distance<=0;
+--7402 out of  small set
+select 7402/1174569;
+-- 0.006301886053522611
+-- we will ignore this data
+select  vendorid,count(*) from  sweta710_assignment.Nyc_tlc_data NYC where trip_distance<=0 group by vendorid;
+-- 1 	4217
+-- 2    3185
+-- Both vendor seems to be equally responsible for recording 0 distance 
+
+------------- ratecodeid-------------------------------------------------------
+select  ratecodeid,count(*) from sweta710_assignment.Nyc_tlc_data NYC group by ratecodeid;
+-- 1-6 are valid id as per teh metadata, and 99 value based 9 records are incorrect 
+-- we will ignore the 9 records
+-- vendorid wise analysis
+select vendorid , count(*) 
+from  sweta710_assignment.Nyc_tlc_data NYC
+where ratecodeid=99
+group by vendorid;
+-- 1	8
+-- 2	1
+-- Vendor 1 is the major contributor towards this data incorrectness/misrecorded value.
+
+-------- store_and_fwd_flag-------------------
+select  store_and_fwd_flag,count(*) from sweta710_assignment.Nyc_tlc_data NYC  group by store_and_fwd_flag;
+-- the value of yes and no are fine
+-- N  1170618
+-- Y  3951
+
+--------- fare_amount--------
+-- max_fare_amount,min_fare_amount,
+--          650 ,       -200
+-- Data Dictionary :- The time-and-distance fare calculated by the meter. 
+
+select percentile_approx(fare_amount,array(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99)) 
+from  sweta710_assignment.Nyc_tlc_data NYC;
+--[4.9362761547186045,5.95224629937812,6.922507828953393,7.970872398404486,9.390657514976596,10.927986060161409,12.998788593388356,16.812358671218053,24.852212075088794,51.958303751465415]
+
+-- these values are acceptable lets try the edge percentile value
+
+select percentile_approx(fare_amount,array(0.01,0.999)) 
+from  sweta710_assignment.Nyc_tlc_data NYC;
+-- 	[3.2616104886694517,88.10262750000518] 
+-- They also seem fine. It means the negative values and very high values are wrong data or outliners.
+-- We can ignore these.
+-- Lets find the count of negative values in the column fare_amount
+select count(*) from sweta710_assignment.Nyc_tlc_data NYC where fare_amount<0;
+-- 558 negative values
+--  lets find the count of fare_amount which are greater then 100$.
+select count(*) from sweta710_assignment.Nyc_tlc_data NYC where fare_amount>100;
+-- 770 records
+-- Lets try a greater number
+select count(*) from  sweta710_assignment.Nyc_tlc_data NYC where fare_amount>400;
+-- 4
+-- There are few outliers as maximum of the fare is less then $100. But we do not have any business specification to reject the higher fares.
+-- some these records have same pickup and drop location, may be the trip was circular
+-- although all these values look like outliner , if we had businees team access we would have requested them to validate.
+-- Vendor wise
+
+select count(*) from  sweta710_assignment.Nyc_tlc_data NYC
+where fare_amount>100 group by vendorid;
+
+--1  490
+--2  280
+
+select count(*) from  sweta710_assignment.Nyc_tlc_data NYC
+where fare_amount>100 and tpep_pickup_datetime = tpep_dropoff_datetime group by vendorid;
+--1 98
+--2 25
+
+--123 records out of 770 are having the same start and drop off time. 
+--Lets find the same for negative values of fare_amount
+
+select count(*) from  sweta710_assignment.Nyc_tlc_data NYC
+where fare_amount<0 and tpep_pickup_datetime = tpep_dropoff_datetime group by vendorid;
+
+-- 127 records are having wrong data of time as well. these records can be ignored.
+
+select vendorid,count(*) from  sweta710_assignment.Nyc_tlc_data NYC
+where fare_amount<0 group by vendorid;
+-- 2   558
+--Vendor 2 is at fault for these all 558 records.
+
+-------extra-----------------------------------------
+-- max_extra,min_extra
+-- 4.8,   -10.6,
+-- extra ranges between 4.8 to -10.6, as we have previously found by the min and max query
+-- Data disctionary says :-Miscellaneous extras and surcharges. 
+-- Currently, this only includes the $0.50 and $1 rush hour and overnight charges.
+-- hence we will reject these values let's verify their count
+select count(*) from sweta710_assignment.Nyc_tlc_data NYC where extra not in (0,0.5,1);
+-- 4856
+select 4856/1174569;
+-- 0.00413428 this data can be safely ignored
+select vendorid,count(*) from sweta710_assignment.Nyc_tlc_data NYC where extra not in (0,0.5,1)
+ group by vendorid;
+--  1	1823
+--	2	3033
+-- both vendro seems to at fault
+
+-------------- mta_tax---------------------------------
+-- max_mta_tax,min_mta_tax
+-- 11.4,     -0.5
+-- Data Dictionary :-$0.50 MTA tax that is automatically triggered based on the metered rate in use.
+select count(*) from sweta710_assignment.Nyc_tlc_data NYC where mta_tax not in (0,0.5);
+--548
+select 548/1174569;
+--0.0004 smaller set, based on data disctionary we would ignore these
+select vendorid,count(*) from sweta710_assignment.Nyc_tlc_data NYC
+where mta_tax not in (0,0.5) group by vendorid;
+-- Both vendor are equally responsible, 
+--  1		1
+--	2		547
+-- Vendor 2 is fault here
+
+-- tip_amount --------------------------------
+-- max_tip_amount,min_tip_amount
+--   450,            -1.16,
+-- Data dictionary - Tip amount – This field is automatically populated for credit card tips. 
+-- Cash tips are not included.
+-- negative values are present. Lets check
+select count(*) from sweta710_assignment.Nyc_tlc_data NYC where tip_amount <0;
+-- 4
+select vendorid,count(*) from sweta710_assignment.Nyc_tlc_data NYC
+where tip_amount <0 group by vendorid;
+-- all 4 belong to vendor 2
+
+-- Let's chek if their are non credit card based tips
+select count(*) from sweta710_assignment.Nyc_tlc_data NYC where Payment_type!=1 and tip_amount>0;
+-- 17 records have payment mode other than credit and still have tip amount greater than 0
+-- As this cann't be the case for correct data, we will ignore these records.
+
+select vendorid,count(*) from sweta710_assignment.Nyc_tlc_data NYC
+where Payment_type!=1 and tip_amount>0  group by vendorid;
+-- 1   17
+-- All records belong to vendor 1
+-- we will remove these records as well later.
+
+--------------- tolls_amount--------------------------------------
+-- max_tolls_amount,min_tolls_amount,
+-- 895.89,    -5.76,
+-- Data Dictionary:- Total amount of all tolls paid in trip. 
+-- The value can't be negative
+select count(*) from sweta710_assignment.Nyc_tlc_data NYC
+where tolls_amount <0;
+--  3
+-- These 3 records can be safely ignored
+
+select vendorid,count(*) from sweta710_assignment.Nyc_tlc_data NYC
+where tolls_amount <0
+group by vendorid;
+ -- 2  3
+-- All 3 records from vendor 2
+
+---------------------- improvement_surcharge---------------------------------------------
+-- max_improvement_surcharge,min_improvement_surcharge,
+--  1,                   -.3
+-- Data Dictionary :- $0.30 improvement surcharge assessed trips at the flag drop. 
+-- The improvement surcharge began being levied in 2015. 
+select count(*) from sweta710_assignment.Nyc_tlc_data NYC where improvement_surcharge not in (0,0.3);
+--  562  
+-- These records can be ignored
+-- vendor wise
+select vendorid,count(*) from sweta710_assignment.Nyc_tlc_data NYC
+where improvement_surcharge not in (0,0.3) 
+group by vendorid;
+
+--2     562
+-- All records belong to vendor 2
+
+--------------total_amount -------------------------------------------------------------
+-- ,max_total_amount,min_total_amount
+--  928.19,          -200.8
+--Data Dictionary:-  The total amount charged to passengers. Does not include cash tips
+-- can not be negative and has most of the component value from fare_amount, we will check this with similar queries
+select count(*) from sweta710_assignment.Nyc_tlc_data NYC where total_amount<0;
+-- 558
+-- these records can be ignored
+-- Higehr value check
+select count(*) from sweta710_assignment.Nyc_tlc_data NYC where total_amount>100;
+-- 1978 trips only have fare higher then 100.This is a very small portion of the data.but it can't be rejected as there is no business reason to do so. 
+-- vendor wise
+select vendorid,count(*) from sweta710_assignment.Nyc_tlc_data NYC
+where total_amount<0 
+group by vendorid;
+
+-- 2	558
+-- Both vendors have given us some outlier kind of data.
+
+-- Basic Data Quality Checks ###########################################
+-- 3.You might have encountered unusual or erroneous rows in the dataset. 
+-- Can you conclude which vendor is doing a bad job in providing the records using different columns of the dataset? Summarise your conclusions based on every column where these errors are present.
+-- For example,  There are unusual passenger count i.e 0 or 192 which is unusual.
+-- Solution:
+-- For the data It's mostly vendor 2 that is providing faulty data.
+-- Below is the list of problemtic data they have provided column wise
+-- invalid values for 1.total_amount , 2.improvement_surcharge,3.tolls_amount, 4.tip_amount,mta_tax, 
+--  5.fare_amount, 6.pickup and 7.drop off time
+-- ####################################
+-- For the column extra,passenger_count both vendor seems to be equally at fault
+-- Vendor 1 for has few tip amount where the payment mode is not credit card
+-- Vendor 1 has provided wrong ratecodeid for 8 records
+-- ##########################################################
+-- But overall Vendor 2 is definately not providing correct data.
+--Summary:
+-- tpep_pickup_datetime  vendor 2    14 bad records
+ --tpep_dropoff_datetime vendor 2     6 bad records
+ --passenger_count       vendor 1    6814 bad records 
+ --trip_distance         both        V1- 4217 and V2-3185 trips with 0 distance travelled
+ --ratecodeid            vendor 1    8 bad records
+ --fare_amount           vendor 2    558 bad records
+ --extra                 both        V1-1823 and V2-3033 bad records
+ --mta_tax               vendor 2    547 bad records
+ --tip_amount            vendor 2    4 records of negative tips 
+ --tolls_amount          vendor 2    3 negative records
+ --improvement_surcharge vendor 2    562 records of non allowed surcharge
+ --total_amount          vendor 2    558 bad records
+
+
+ 
+--###############################################################################################################
+
+
+use sweta710_assignment;
+-- Before answering the below questions, you need to create a clean, ORC partitioned table for analysis.
+-- Remove all the erroneous rows.
+
+-- We will be partinening on the month column first as we need to answer question comparing between the two
+-- since we expect only two month data to pass from out filters year is not an any use in partionening
+
+-- Our secondarly partition is based on Vendor , although the question don't call for this one
+-- In general if we were analysing this data freely we would still want the partitionening to be done this way
+drop table sweta710_assignment.Nyc_tlc_partitioned_ORC;
+Create external table if not exists sweta710_assignment.Nyc_tlc_partitioned_ORC(
+VendorID int,
+tpep_pickup_datetime timestamp,
+tpep_dropoff_datetime timestamp,
+passenger_count int,
+trip_distance decimal(10,2),
+RatecodeID int,
+store_and_fwd_flag string,
+PULocationID int,
+DOLocationID int,
+payment_type int,
+fare_amount decimal(10,2),
+extra decimal(10,2),
+mta_tax decimal(10,2),
+tip_amount decimal(10,2),
+tolls_amount decimal(10,2),
+improvement_surcharge decimal(10,2),
+total_amount decimal(10,2)
+)
+partitioned by (Month int)
+stored as orc location '/user/siasingh710_gmail/Hive_assignment_sweta'
+tblproperties ("orc.compress"="SNAPPY");
+
+insert overwrite table sweta710_assignment.Nyc_tlc_partitioned_ORC partition(Month)
+select
+VendorID,
+tpep_pickup_datetime,
+tpep_dropoff_datetime,
+passenger_count,
+trip_distance,
+RatecodeID,
+store_and_fwd_flag,
+PULocationID,
+DOLocationID,
+payment_type,
+fare_amount,
+extra,
+mta_tax,
+tip_amount,
+tolls_amount,
+improvement_surcharge,
+total_amount,
+month(tpep_pickup_datetime) Month
+from sweta710_assignment.Nyc_tlc_data NYC
+where  (NYC.tpep_pickup_datetime >='2017-11-1 00:00:00.0' and NYC.tpep_pickup_datetime<'2018-01-01 00:00:00.0') and
+( NYC.tpep_dropoff_datetime >= '2017-11-1 00:00:00.0' and NYC.tpep_dropoff_datetime<'2018-01-02 00:00:00.0') and
+(NYC.tpep_dropoff_datetime>NYC.tpep_pickup_datetime) and
+(passenger_count not in (0)) and
+(trip_distance>0) and 
+(ratecodeid!=99) and
+(fare_amount>0 ) and
+ (extra in (0,0.5,1)) and
+ (mta_tax  in (0,0.5)) and 
+((tip_amount >=0 and Payment_type=1) or (Payment_type!=1 and tip_amount=0)) and
+( tolls_amount >=0) and
+( improvement_surcharge in (0,0.3)) and
+( total_amount>0 ) ; 
+
+select count(*) from sweta710_assignment.Nyc_tlc_partitioned_ORC;
+-- 1153587
+
+select 1174569-1153587;
+-- 20982
+
+select 1153587/1174569*100;
+--98.21364262125087 
+
+--We are still having ~98% of the data available with us.
+
+--# Analysis-I ##################################################
+
+-- 1 .Compare the overall average fare per trip for November and December.#########################################
+select month,round(avg(total_amount),2),round(avg(fare_amount),2)
+from sweta710_assignment.Nyc_tlc_partitioned_ORC group by month;
+-- Month Avg_total_amt Avg_fare_amount
+-- 11	    16.19	    12.91
+-- 12	    15.89	    12.7
+select 16.19-15.89, 12.91-12.7;
+-- Overall the month Novemeber seems to be better considering total amount.
+-- Also the difference in fare amount avg is on the lower side when compared to total amount
+-- this signifies that exta tax and charges are also present during the month of November
+
+-- 2. Explore the ‘number of passengers per trip’ - how many trips are made by each level of ‘Passenger_count’? 
+-- Do most people travel solo or with other people?#############################################################
+select passenger_count,round((count(*)*100/1153587),4) count
+from sweta710_assignment.Nyc_tlc_partitioned_ORC group by passenger_count
+order by count desc;
+--  1	70.8242
+--	2	15.1513
+--	5	4.6843
+--	3	4.3502
+--	6	2.8504
+--	4	2.139
+
+-- Solo rides are the most preferred/common rides. They are infact dominating with almost 71% of data belonging to solo riders
+-- Dual rides are the only other significant category with 15% occupancy
+-- Rest all are well below 5 %
+-- count for 9,8,7 is too small to be of any significance, assuming the ride to be a big vehicle used very rarely by riders
+select passenger_count,count(*) count
+from sweta710_assignment.Nyc_tlc_partitioned_ORC where passenger_count in (9,8,7) 
+group by passenger_count
+order by count desc;
+-- 7	3
+--After filtering the columns for other conditions the data for pasenger_count =8,9 is no longer present in the new table.
+
+-- 3.Which is the most preferred mode of payment? ##############################################################
+select payment_type,round((count(*)*100/1153587),4) count
+from sweta710_assignment.Nyc_tlc_partitioned_ORC  group by payment_type
+order by count desc;
+--1	67.5418 Credit card
+--2	31.9576 Cash
+--3	0.3884  No charge
+--4	0.1123  Dispute
+-- Payment using credit card is dominant with 67.5% and cash payment are 2nd highest mode i.e ~32%
+-- rest all modes are negligable
+-- 5 & 6 are not existance as previsously seen.
+
+-- 4.What is the average tip paid per trip? 
+-- Compare the average tip with the 25th, 50th and 75th percentiles and 
+-- comment whether the ‘average tip’ is a representative statistic (of the central tendency) of ‘tip amount paid’. 
+-- Hint: You may use percentile_approx(DOUBLE col, p): 
+-- Returns an approximate pth percentile of a numeric column (including floating point types) in the group.
+select round(avg(tip_amount),2)  
+from sweta710_assignment.Nyc_tlc_partitioned_ORC;
+-- 1.83
+select percentile_approx(tip_amount,array(0.25,0.50,0.75)) as percentiles
+from sweta710_assignment.Nyc_tlc_partitioned_ORC;
+--   0.25,   0.50,    0.75
+-- 	[0.0, 1.0 , 1.15, 1.36, 1.76, 1.997, 2.45]
+-- From the %centile values we can see that data is skewed towards teh higher side.
+-- 25% or more values bein zero tip do play a high part in this behaviour
+-- again the median 1.36 is much lower then the avg 1.82 due to the skewness towards higher values
+-- Hence mean is not representative statistic of centeral tendency here.
+-- It woudl be advised to use median instead of mean for this particular column during analysis
+
+
+-- 5. Explore the ‘Extra’ (charge) variable - what fraction of total trips have an extra charge is levied? ###############################################
+select extra,round((count(*)*100/1153587),4) cnt from (
+select case when extra>0 then 1 else 0 end  extra
+from sweta710_assignment.Nyc_tlc_partitioned_ORC ) T
+group by extra
+order by cnt desc;
+-- Extra applied    %age records
+--      0	        53.8545
+--      1	        46.1455
+-- The distribusion is fairly even with 46.14% records having extra charges applied , where as  53.85% have no extra charges applied
+
+-- # Analysis-II ###########################################################################################################################
+
+-- 1. What is the correlation between the number of passengers on any given trip, and the tip paid per trip? ############################
+--    Do multiple travellers tip more compared to solo travellers? Hint: Use CORR(Col_1, Col_2)
+select round(corr(passenger_count, tip_amount),4) from sweta710_assignment.Nyc_tlc_partitioned_ORC;
+-- -0.0053
+-- the value is very small, almost 0, although negative but its would be fair to say that passenger count is unrelated to the tip amount .
+
+select round(corr(is_solo, tip_amount),4) from 
+(select case when passenger_count=1 then 1 else 0 end is_solo,tip_amount 
+from sweta710_assignment.Nyc_tlc_partitioned_ORC ) T;
+-- 0.0062, comparing only single vs multiple rider count their is still very low co-relation
+
+select is_solo,round(avg(tip_amount),4) from 
+(select case when passenger_count=1 then 1 else 0 end is_solo,tip_amount 
+from sweta710_assignment.Nyc_tlc_partitioned_ORC ) T group by is_solo;
+--  0	1.8023
+--	1	1.8354
+-- Values are almost same 
+
+-- 2. Segregate the data into five segments of ‘tip paid’: [0-5), [5-10), [10-15) , [15-20) and >=20. #######################################################
+--    Calculate the percentage share of each bucket (i.e. the fraction of trips falling in each bucket).
+select Tip_range, round((count(*)*100/1153587),4) count
+from (select
+case when (tip_amount>=0 and tip_amount<5)   then '[0-5)' 
+     when (tip_amount>=5 and tip_amount<10)  then '[5-10)' 
+     when (tip_amount>=10 and tip_amount<15) then '[10-15)'
+     when (tip_amount>=15 and tip_amount<20) then '[15-20)'
+     when (tip_amount>=20)                   then '>=20' end Tip_range
+     from sweta710_assignment.Nyc_tlc_partitioned_ORC) T 
+     group by Tip_range
+     order by count desc;
+-- [0-5)	92.4038
+-- [5-10)	5.638
+-- [10-15)	1.6829
+-- [15-20)	0.1872
+-- >=20	    0.0881
+-- 0-5 range is the most prominant category with 92.4% records.
+-- Also we are aware that near about/greater than 25% of the tip_amount is 0 
+-- 5-10 represening a small fraction of 5.6%, remaning set are almost negligible amount to 2% of data
+
+
+
+-- 3.Which month has a greater average ‘speed’ - November or December? ##################################################
+-- Note that the variable ‘speed’ will have to be derived from other metrics.
+-- Hint: You have columns for distance and time.
+
+-- we will calculate duration by subtracting the dropoff time from pickup time, since we are using unix timestamp function(as direct subtraction of timestamp column wouldn't work)
+-- values will be returned in sec hence we will be dividing it by 3600 to get value in hour
+-- since distance is specified in miles, final value will be in miles/hour unit
+
+select month , round(avg(trip_distance/((unix_timestamp(tpep_dropoff_datetime)-unix_timestamp(tpep_pickup_datetime) )/3600) ),2) avg_speed
+from sweta710_assignment.Nyc_tlc_partitioned_ORC
+group by month
+order by avg_speed desc;
+--  11	10.97
+--	12	11.07
+-- December month is marginally faster by 0.07 miles/hour
+
+-- 5.Analyse the average speed of the most happening days of the year, #########################################################################################
+-- i.e. 31st December (New year’s eve) and 25th December (Christmas Eve)
+-- and compare it with the overall average. 
+-- any trip that started on 25th or 31 will be considerd for teh avg calculation irrespective of the fact that it might have ended on the next day
+select IsHoliday, round(avg(speed),2) avg_speed from 
+(select case when ((tpep_pickup_datetime>='2017-12-25 00:00:00.0' and tpep_pickup_datetime<'2017-12-26 00:00:00.0') 
+or (tpep_pickup_datetime>='2017-12-31 00:00:00.0' and tpep_pickup_datetime<'2018-01-01 00:00:00.0')  ) then 1 else 0 end IsHoliday   , 
+trip_distance/((unix_timestamp(tpep_dropoff_datetime)-unix_timestamp(tpep_pickup_datetime) )/3600) speed
+from sweta710_assignment.Nyc_tlc_partitioned_ORC) T
+group by IsHoliday
+order by avg_speed desc;
+-- 1	14.01
+-- 0	10.95
+select 14.01-10.95;
+--3.06
+-- The average speed for holidays is greater then the average speed on normal days.
+-- The Taxi's are running at a faster average speed by a margin of  3.06 miles/hour
+-- The non festive day average is in sync with november and december averages at around 12.6 miles/per hour
+-- let's confirm the overall averages once  
+select round(avg(trip_distance/((unix_timestamp(tpep_dropoff_datetime)-unix_timestamp(tpep_pickup_datetime) )/3600)),2) avg_speed
+from sweta710_assignment.Nyc_tlc_partitioned_ORC; 
+-- 11.02 is the overall avg speed 
+
+
+-- Let's compare individual days too 
+-- christmas
+select Day_type,round(avg(trip_distance/((unix_timestamp(tpep_dropoff_datetime)-unix_timestamp(tpep_pickup_datetime) )/3600)),2) avg_speed
+from ( 
+select trip_distance,tpep_dropoff_datetime,tpep_pickup_datetime,
+case when ((tpep_pickup_datetime>='2017-12-25 00:00:00.0' and tpep_pickup_datetime<'2017-12-26 00:00:00.0')) then 1
+when ((tpep_pickup_datetime>='2017-12-31 00:00:00.0' and tpep_pickup_datetime<'2018-01-01 00:00:00.0')  ) then 2 else 0 end Day_type 
+from sweta710_assignment.Nyc_tlc_partitioned_ORC
+) T
+group by Day_type;
+
+--  0	10.95 rest of the days
+--	1	15.27 Chritsmas
+--  2	13.24 new year eve
+-- The fasted avg speed is oberved on chrismat day @ 15.27 miles/hour;
